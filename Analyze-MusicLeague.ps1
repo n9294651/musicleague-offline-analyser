@@ -118,10 +118,29 @@ $songs = foreach ($g in ($rows | Group-Object Round, Song)) {
         Song      = $g.Group[0].Song
         Submitter = $g.Group[0].Submitter
         Points    = ($g.Group | Measure-Object Votes -Sum).Sum
-        Voters    = $g.Count
+        Voters    = @($g.Group | Select-Object -ExpandProperty Voter -Unique).Count
         TopVotes  = @($g.Group | Where-Object Votes -ge 5).Count
     }
 }
+$songsByVoters = foreach ($r in $rounds) {
+    $rank = 0
+    foreach ($s in ($songs | Where-Object Round -eq $r | Sort-Object @{e = 'Voters'; Descending = $true }, @{e = 'Points'; Descending = $true })) {
+        $rank++
+        [pscustomobject]@{
+            Round     = $s.Round
+            Rank      = $rank
+            Song      = $s.Song
+            Submitter = $s.Submitter
+            Voters    = $s.Voters
+            Points    = $s.Points
+        }
+    }
+}
+foreach ($r in $rounds) {
+    Show "Round $r songs ranked by number of voters (each voter counts once per song)" ($songsByVoters | Where-Object Round -eq $r)
+}
+Export 'all-songs-ranked-by-voters' $songsByVoters
+
 $winners = foreach ($r in $rounds) {
     $set = @($songs | Where-Object Round -eq $r)
     $max = ($set | Measure-Object Points -Maximum).Maximum
@@ -177,6 +196,22 @@ $leaderboard = foreach ($g in ($songStats | Group-Object Submitter)) {
 $leaderboard = $leaderboard | Sort-Object @{e = 'AvgPtsPerVoter'; Descending = $true }, @{e = 'Wins'; Descending = $true }
 Show 'Submitter leaderboard (ranked by average points per eligible voter, which evens out different round sizes)' $leaderboard
 Export 'submitter-leaderboard' $leaderboard
+
+# Alternate leaderboard: each eligible voter contributes at most one vote per song.
+$voterLeaderboard = foreach ($g in ($songStats | Group-Object Submitter)) {
+    $best = $g.Group | Sort-Object @{e = { $_.Scored / [math]::Max($_.Eligible, 1) }; Descending = $true } | Select-Object -First 1
+    [pscustomobject]@{
+        Submitter       = $g.Name
+        Songs           = $g.Count
+        TotalVoterVotes = ($g.Group | Measure-Object Scored -Sum).Sum
+        AvgVotersPerSong = [math]::Round(($g.Group | Measure-Object Scored -Average).Average, 2)
+        AvgVoterPct     = [math]::Round(100 * (($g.Group | ForEach-Object { $_.Scored / [math]::Max($_.Eligible, 1) } | Measure-Object -Average).Average), 2)
+        BestSong        = "R$($best.Round): $($best.Song)"
+    }
+}
+$voterLeaderboard = $voterLeaderboard | Sort-Object @{e = 'AvgVoterPct'; Descending = $true }, @{e = 'TotalVoterVotes'; Descending = $true }
+Show 'Submitter leaderboard by voter count (ranked by average share of eligible voters supporting each song)' $voterLeaderboard
+Export 'submitter-voter-leaderboard' $voterLeaderboard
 
 # Taste similarity: Pearson correlation of scores (zeros included) on songs both voters could score
 $sim = for ($i = 0; $i -lt $voters.Count; $i++) {
