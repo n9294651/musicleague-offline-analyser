@@ -1,7 +1,6 @@
-# musicleague-offline-analyser
-Slop 'enhanced' music league analyser. offline in that it doesn't use spotify creds/etc and does no web scraping... because it's not that serious
+# Music League analysis
 
-AI slop generated instructions below
+Two PowerShell scripts: one turns saved Music League results pages into CSVs, the other analyses all the CSVs.
 
 ## Folder layout
 
@@ -51,6 +50,7 @@ It reads every `.csv` in `rounds\`, however many there are, and prints:
 - Voting spectrum: songs scored per round and points per song, for every voter
 - Winning songs ranked by points
 - Submitter leaderboard (points per eligible voter, wins, best song)
+- Songs ranked by number of voters within each round, counting each person once per song, and an alternate submitter leaderboard ranked by the average share of eligible voters who supported their songs
 - Taste similarity: most similar and most opposite voter pairs
 - Most divisive and most consensus songs
 - Rounds each person didn't vote in, and the songs each voter gave nothing to
@@ -117,6 +117,19 @@ Fill in the `RealName` column of `names.csv` (`Username,RealName`). The analysis
 | `TotalPoints` / `AvgPoints` | Points their songs received in total / per song |
 | `AvgPtsPerVoter` | Average points per eligible voter, per song. Fair across rounds with different numbers of voters, and the column the table is sorted by |
 | `BestSong` | Their song with the highest points per eligible voter, as `R<round>: <song>` |
+
+**`submitter-voter-leaderboard.csv`**: alternate one-row-per-submitter leaderboard that treats each person who gave a song points as one vote, regardless of the points they gave
+
+| Column | Meaning |
+|---|---|
+| `Submitter` | Person |
+| `Songs` | Songs they submitted |
+| `TotalVoterVotes` | Sum of distinct voters supporting their songs |
+| `AvgVotersPerSong` | Average number of voters supporting each song |
+| `AvgVoterPct` | Average share of eligible voters supporting each song; the column the table is sorted by |
+| `BestSong` | Their song with the highest share of eligible voters, as `R<round>: <song>` |
+
+**`all-songs-ranked-by-voters.csv`**: songs ranked by distinct voters within each round (then by points); includes the round and rank for each song
 
 **`song-spread.csv`**: one row per song, most divisive first
 
